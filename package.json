@@ -1,0 +1,8 @@
+{
+  "name": "hiv-plotter",
+  "version": "1.0.0",
+  "main": "HIV_v2.js",
+  "dependencies": {
+    "canvas": "^3.2.0"
+  }
+}

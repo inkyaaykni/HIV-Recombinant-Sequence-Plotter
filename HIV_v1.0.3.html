@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HIV重组序列绘图工具</title>
+  <!-- 引入D3.js v7 CDN -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /* ============================================
+       基础样式重置和全局设置
+       Requirements: 1.1
+       ============================================ */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+    
+    /* ============================================
+       容器布局
+       ============================================ */
+    .container {
+      max-width: 1000px;
+      /* width: 100%; */
+      margin: 0 auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    /* ============================================
+       标题样式
+       ============================================ */
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 25px;
+      font-size: 24px;
+      font-weight: 600;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #3498db;
+    }
+    
+    /* ============================================
+       输入区域样式
+       ============================================ */
+    .input-section {
+      margin-bottom: 25px;
+    }
+    
+    .input-section label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      color: #34495e;
+      font-size: 14px;
+    }
+    
+    #dataInput {
+      width: 100%;
+      height: 200px;
+      padding: 12px 15px;
+      border: 2px solid #dce4ec;
+      border-radius: 8px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: vertical;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      background-color: #fafbfc;
+    }
+    
+    #dataInput:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+      background-color: white;
+    }
+    
+    #dataInput::placeholder {
+      color: #95a5a6;
+      font-size: 12px;
+    }
+    
+    /* ============================================
+       按钮样式
+       ============================================ */
+    .button-group {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    #submitBtn {
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    }
+    
+    #submitBtn:hover {
+      background: linear-gradient(135deg, #2980b9 0%, #1f6dad 100%);
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+      transform: translateY(-1px);
+    }
+    
+    #submitBtn:active {
+      background: linear-gradient(135deg, #1f6dad 0%, #1a5a8e 100%);
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+    }
+    
+    .hint-text {
+      color: #7f8c8d;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    
+    .secondary-btn {
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .secondary-btn:hover {
+      background: linear-gradient(135deg, #7f8c8d 0%, #6c7a7d 100%);
+      transform: translateY(-1px);
+    }
+    
+    .download-group {
+      margin-top: 10px;
+    }
+    
+    .download-label {
+      color: #34495e;
+      font-size: 13px;
+      font-weight: 500;
+      margin-right: 10px;
+    }
+    
+    .download-btn {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #27ae60 0%, #219a52 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .download-btn:hover {
+      background: linear-gradient(135deg, #219a52 0%, #1e8449 100%);
+      transform: translateY(-1px);
+    }
+    
+    /* ============================================
+       输出区域样式
+       ============================================ */
+    .output-section {
+      margin-top: 25px;
+    }
+    
+    .output-section h2 {
+      color: #2c3e50;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+    
+    #svgContainer {
+      width: 100%;
+      min-height: 300px;
+      border: 2px solid #dce4ec;
+      border-radius: 8px;
+      background-color: white;
+      overflow: hidden;
+    }
+    
+    /* ============================================
+       SVG图表样式
+       ============================================ */
+    #chart {
+      display: block;
+    }
+    
+    /* 坐标轴样式 */
+    .x-axis path,
+    .x-axis line {
+      stroke: #bdc3c7;
+    }
+    
+    .x-axis text {
+      fill: #7f8c8d;
+    }
+    
+    /* ============================================
+       响应式设计
+       ============================================ */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .container {
+        padding: 20px;
+        border-radius: 8px;
+      }
+      
+      h1 {
+        font-size: 20px;
+      }
+      
+      #dataInput {
+        height: 150px;
+        font-size: 12px;
+      }
+      
+      #submitBtn {
+        width: 100%;
+        padding: 14px;
+      }
+      
+      .button-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .hint-text {
+        margin-left: 0;
+        margin-top: 8px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>HIV重组序列绘图工具</h1>
+    
+    <!-- 输入表单 -->
+    <div class="input-section">
+      <label for="dataInput">输入亚型区域数据（每行格式：起始位置 结束位置 亚型）：</label>
+      <textarea id="dataInput" placeholder="示例：
+1	736	D
+737	1058	C
+1059	2510	D
+2511	2800	C
+2801	4309	D
+4310	4613	C
+4614	6086	D
+6087	6396	C
+6397	7879	D
+7880	8203	C
+8204	8597	D
+8598	8809	3'-Insertion"></textarea>
+      <div class="button-group">
+        <button id="submitBtn">生成图表</button>
+        <button id="clearInputBtn" class="secondary-btn">清空输入框</button>
+        <button id="clearResultBtn" class="secondary-btn">清空结果图</button>
+        <button id="resetBtn" class="secondary-btn">重置</button>
+        <span class="hint-text">提示：按 Ctrl+Enter 快速提交</span>
+      </div>
+      <div class="button-group download-group">
+        <span class="download-label">下载图片：</span>
+        <button id="downloadPngBtn" class="download-btn">PNG</button>
+        <button id="downloadJpgBtn" class="download-btn">JPG</button>
+        <button id="downloadSvgBtn" class="download-btn">SVG</button>
+      </div>
+    </div>
+    
+    <!-- SVG容器 -->
+    <div class="output-section">
+      <h2>重组序列图谱</h2>
+      <div id="svgContainer">
+        <svg id="chart" width="100%" height="300"></svg>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // 颜色配置模块 (ColorManager)
+    // ============================================
+    
+    // 默认颜色配置 - 根据Requirements 6.1, 6.2, 6.3, 6.4
+    const DEFAULT_COLORS = {
+      'A': '#FF0000',     // 红色
+      'A1': '#FF5700',    // 橙色
+      'A2': '#FF7E5E',    // 浅蓝
+      'B': '#3F98F2',     // 蓝色
+      'C': '#9D6039',     // 棕色
+      'D': '#E3A1C9',     // 粉色
+      'E': '#FFFF64',     // 淡紫
+      'F': '#BEE120',     // 浅绿
+      'F1': '#C5CAFF',    // 天蓝
+      'F2': '#97D7FF',    // 浅天蓝
+      'G': '#4FAE57',     // 森林绿
+      'H': '#FFD700',     // 黄绿
+      'J': '#20D7CF',     // 黄色
+      'J1': '#FFB600',    // 金色
+      'J2': '#FFD700',    // 皇家蓝
+      'K': '#7C45D9',     // 紫色
+      '01': '#7C45D9',    // 深紫
+      '02': '#D7B320',    // 蓝紫
+      '?': '#DCDCDC',     // 浅灰
+      'U': '#DCDCDC'      // 灰色
+    };
+
+    // 备用颜色列表，用于未知亚型
+    const FALLBACK_COLORS = [
+      '#FF6347', '#20B2AA', '#DDA0DD', '#F0E68C', '#BC8F8F',
+      '#4682B4', '#D2691E', '#6B8E23', '#CD5C5C', '#708090'
+    ];
+
+    // 已分配的未知亚型颜色映射
+    const assignedColors = {};
+    let fallbackColorIndex = 0;
+
+    /**
+     * 获取亚型对应的颜色
+     * @param {string} subtype - 亚型标识
+     * @returns {string} - 颜色值（十六进制）
+     * Requirements: 3.2, 3.3
+     */
+    function getColor(subtype) {
+      // 已知亚型返回预定义颜色
+      if (DEFAULT_COLORS.hasOwnProperty(subtype)) {
+        return DEFAULT_COLORS[subtype];
+      }
+      
+      // 检查是否已为该未知亚型分配过颜色
+      if (assignedColors.hasOwnProperty(subtype)) {
+        return assignedColors[subtype];
+      }
+      
+      // 为未知亚型分配备用颜色
+      const color = FALLBACK_COLORS[fallbackColorIndex % FALLBACK_COLORS.length];
+      assignedColors[subtype] = color;
+      fallbackColorIndex++;
+      
+      return color;
+    }
+
+    /**
+     * 重置已分配的颜色（用于新的渲染）
+     */
+    function resetAssignedColors() {
+      for (const key in assignedColors) {
+        delete assignedColors[key];
+      }
+      fallbackColorIndex = 0;
+    }
+
+    // ============================================
+    // 基因图谱配置模块 (GeneMapConfig)
+    // ============================================
+
+    /**
+     * HIV-1 HXB2基因图谱配置
+     * 精确匹配参考图：
+     * - 第一行：5个长方形（5' LTR, gag, vif, 无文字小块, nef）
+     * - 第二行：4个长方形（无文字粉色块, vpu, rev无文字块, 3' LTR）
+     * - 第三行：4个长方形（pol, vpr, 无文字小块, env）
+     * Requirements: 2.1, 2.2
+     */
+    const GENE_MAP = [
+      // Row 1 - 5个长方形
+      { name: "5' LTR", start: 1, end: 634, row: 1, bgColor: '#CCCCCC' },
+      { name: 'gag', start: 790, end: 2292, row: 1, bgColor: '#CCCCCC' },
+      { name: 'vif', start: 5041, end: 5619, row: 1, bgColor: '#CCCCCC' },
+      { name: '', start: 8379, end: 8469, row: 1, bgColor: '#CCCCCC' },     // nef左侧无文字小块（tat位置）
+      { name: 'nef', start: 8797, end: 9417, row: 1, bgColor: '#FFFFFF' },  // 白色背景
+      
+      // Row 2 - 4个长方形
+      // vpu左侧块：粉色背景，右侧到6045，vpu从6062开始，间隔17
+      { name: '', start: 5831, end: 6045, row: 2, bgColor: '#FFB6C1', noOverlay: true },  // 粉色背景
+      { name: 'vpu', start: 6062, end: 6310, row: 2, bgColor: '#CCCCCC' },
+      { name: '', start: 8379, end: 8653, row: 2, bgColor: '#CCCCCC' },     // 3'LTR左侧无文字块（rev位置）
+      { name: "3' LTR", start: 9086, end: 9719, row: 2, bgColor: '#FFFFFF' },  // 白色背景
+      
+      // Row 3 - 4个长方形
+      { name: 'pol', start: 2085, end: 5096, row: 3, bgColor: '#CCCCCC' },
+      { name: 'vpr', start: 5559, end: 5850, row: 3, bgColor: '#CCCCCC' },
+      { name: '', start: 5970, end: 6045, row: 3, bgColor: '#CCCCCC' },     // vpr右侧无文字小块
+      { name: 'env', start: 6225, end: 8795, row: 3, bgColor: '#CCCCCC' }
+    ];
+
+    /**
+     * 连接线配置 - 用于显示跨越的基因（tat和rev）
+     * 第一条线：从第二行vpu左侧块 连接到 第一行nef左侧块（tat连接线）
+     * 第二条线：从第三行vpr右侧块 连接到 第二行3'LTR左侧块（rev连接线）
+     */
+    const CONNECTOR_LINES = [
+      // tat连接线：从第二行vpu左侧块(row2) 向上连接到 第一行nef左侧块(row1)
+      { fromX: 6045, fromRow: 2, toX: 8379, toRow: 1, label: 'tat' },
+      // rev连接线：从第三行vpr右侧块(row3) 向上连接到 第二行3'LTR左侧块(row2)
+      { fromX: 6045, fromRow: 3, toX: 8379, toRow: 2, label: 'rev' }
+    ];
+
+    // ============================================
+    // 输入解析器模块 (InputParser)
+    // ============================================
+
+    /**
+     * 解析用户输入的文本数据
+     * 支持空格或制表符分隔的三列格式
+     * @param {string} text - 用户输入的原始文本
+     * @returns {Array<{start: number, end: number, subtype: string, color: string}>} - SubtypeRegion数组
+     * Requirements: 1.3, 1.4, 1.5, 1.6
+     */
+    function parseInput(text) {
+      const regions = [];
+      
+      // 如果输入为空，返回空数组
+      if (!text || text.trim() === '') {
+        return regions;
+      }
+      
+      // 按行分割
+      const lines = text.split('\n');
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // 跳过空行
+        if (line === '') {
+          continue;
+        }
+        
+        // 使用正则表达式分割，支持空格和制表符
+        const parts = line.split(/[\s\t]+/);
+        
+        // 验证是否有三列数据
+        if (parts.length < 3) {
+          console.warn(`第 ${i + 1} 行格式无效（列数不足）: "${line}"`);
+          continue;
+        }
+        
+        // 解析起始位置和结束位置
+        const start = parseInt(parts[0], 10);
+        const end = parseInt(parts[1], 10);
+        
+        // 验证数字转换是否成功
+        if (isNaN(start)) {
+          console.warn(`第 ${i + 1} 行起始位置无效: "${parts[0]}"`);
+          continue;
+        }
+        
+        if (isNaN(end)) {
+          console.warn(`第 ${i + 1} 行结束位置无效: "${parts[1]}"`);
+          continue;
+        }
+        
+        // 获取亚型标识（第三列及之后的内容合并，支持带空格的亚型名称如 "3'-Insertion"）
+        const subtype = parts.slice(2).join(' ');
+        
+        // 验证亚型不为空
+        if (subtype === '') {
+          console.warn(`第 ${i + 1} 行亚型标识为空`);
+          continue;
+        }
+        
+        // 处理起始位置大于结束位置的情况（自动交换）
+        let finalStart = start;
+        let finalEnd = end;
+        if (start > end) {
+          console.warn(`第 ${i + 1} 行起始位置大于结束位置，已自动交换`);
+          finalStart = end;
+          finalEnd = start;
+        }
+        
+        // 获取颜色
+        const color = getColor(subtype);
+        
+        // 添加到结果数组
+        regions.push({
+          start: finalStart,
+          end: finalEnd,
+          subtype: subtype,
+          color: color
+        });
+      }
+      
+      return regions;
+    }
+
+    /**
+     * 验证输入数据是否有效
+     * @param {string} text - 用户输入的原始文本
+     * @returns {{valid: boolean, message: string, regions: Array}} - 验证结果
+     * Requirements: 1.3
+     */
+    function validateInput(text) {
+      // 检查空输入
+      if (!text || text.trim() === '') {
+        return {
+          valid: false,
+          message: '请输入亚型区域数据',
+          regions: []
+        };
+      }
+      
+      // 重置颜色分配
+      resetAssignedColors();
+      
+      // 解析输入
+      const regions = parseInput(text);
+      
+      // 检查是否有有效数据
+      if (regions.length === 0) {
+        return {
+          valid: false,
+          message: '未能解析出有效的亚型区域数据，请检查输入格式',
+          regions: []
+        };
+      }
+      
+      return {
+        valid: true,
+        message: `成功解析 ${regions.length} 个亚型区域`,
+        regions: regions
+      };
+    }
+
+    // ============================================
+    // 断点计算模块 (BreakpointCalculator)
+    // ============================================
+
+    /**
+     * 计算断点位置
+     * 根据输入的区域数据提取所有断点位置，并计算显示值
+     * - 所有数字都保持原值显示
+     * @param {Array<{start: number, end: number, subtype: string}>} regions - 亚型区域数组
+     * @returns {Array<{position: number, displayValue: number, isFirst: boolean, isLast: boolean}>} - 断点数组
+     * Requirements: 4.2, 4.3
+     */
+    function calculateBreakpoints(regions) {
+      const breakpoints = [];
+      
+      // 如果没有区域数据，返回空数组
+      if (!regions || regions.length === 0) {
+        return breakpoints;
+      }
+      
+      // 按起始位置排序区域
+      const sortedRegions = [...regions].sort((a, b) => a.start - b.start);
+      
+      // 遍历所有区域，只提取起始位置作为断点
+      for (let i = 0; i < sortedRegions.length; i++) {
+        const region = sortedRegions[i];
+        const isFirstRegion = (i === 0);
+        const isLastRegion = (i === sortedRegions.length - 1);
+        
+        // 添加起始位置断点，保持原值
+        breakpoints.push({
+          position: region.start,
+          displayValue: region.start,  // 保持原值
+          isFirst: isFirstRegion,
+          isLast: false
+        });
+        
+        // 只在最后一个区域添加结束位置断点
+        if (isLastRegion) {
+          breakpoints.push({
+            position: region.end,
+            displayValue: region.end,  // 保持原值
+            isFirst: false,
+            isLast: true
+          });
+        }
+      }
+      
+      return breakpoints;
+    }
+
+    // ============================================
+    // D3渲染器模块 (D3Renderer)
+    // ============================================
+
+    // 渲染配置
+    const RENDER_CONFIG = {
+      width: 900,
+      height: 300,
+      margin: { top: 60, right: 50, bottom: 80, left: 50 },
+      geneRowHeight: 25,
+      geneRowGap: 10,
+      axisRange: [0, 9719],
+      numberRotation: 0  // 数字不倾斜
+    };
+
+    // X轴比例尺（全局，供各渲染函数使用）
+    let xScale;
+
+    /**
+     * 初始化SVG和比例尺
+     * @returns {Object} - D3 SVG selection
+     */
+    function initSVG() {
+      const svg = d3.select('#chart')
+        .attr('width', RENDER_CONFIG.width)
+        .attr('height', RENDER_CONFIG.height);
+      
+      // 清空SVG内容
+      svg.selectAll('*').remove();
+      
+      // 创建X轴比例尺
+      xScale = d3.scaleLinear()
+        .domain(RENDER_CONFIG.axisRange)
+        .range([RENDER_CONFIG.margin.left, RENDER_CONFIG.width - RENDER_CONFIG.margin.right]);
+      
+      return svg;
+    }
+
+    /**
+     * 渲染基因图谱背景（三行长方形）
+     * Requirements: 2.2, 2.4
+     * @param {Object} svg - D3 SVG selection
+     */
+    function renderGeneMapBackground(svg) {
+      const geneGroup = svg.append('g').attr('class', 'gene-map-background');
+      
+      // 计算每行的Y坐标
+      const getRowY = (row) => {
+        const baseY = RENDER_CONFIG.margin.top + 20;
+        return baseY + (row - 1) * (RENDER_CONFIG.geneRowHeight + RENDER_CONFIG.geneRowGap);
+      };
+      
+      // 渲染每个基因的长方形（使用各自的背景颜色）
+      geneGroup.selectAll('rect.gene-bg')
+        .data(GENE_MAP)
+        .enter()
+        .append('rect')
+        .attr('class', 'gene-bg')
+        .attr('x', d => xScale(d.start))
+        .attr('y', d => getRowY(d.row))
+        .attr('width', d => xScale(d.end) - xScale(d.start))
+        .attr('height', RENDER_CONFIG.geneRowHeight)
+        .attr('fill', d => d.bgColor)  // 使用各自的背景颜色
+        .attr('stroke', d => (d.name === 'nef' || d.name === "3' LTR") ? '#000000' : 'none')
+        .attr('stroke-width', d => (d.name === 'nef' || d.name === "3' LTR") ? 0.2 : 0);
+    }
+
+    /**
+     * 渲染基因图谱边框和名称（在着色区域之上）
+     * Requirements: 2.2, 2.3
+     * @param {Object} svg - D3 SVG selection
+     */
+    function renderGeneMapLabels(svg) {
+      const geneGroup = svg.append('g').attr('class', 'gene-map-labels');
+      
+      // 计算每行的Y坐标
+      const getRowY = (row) => {
+        const baseY = RENDER_CONFIG.margin.top + 20;
+        return baseY + (row - 1) * (RENDER_CONFIG.geneRowHeight + RENDER_CONFIG.geneRowGap);
+      };
+      
+      // 渲染每个基因的边框（透明填充，只显示边框）
+      geneGroup.selectAll('rect.gene-border')
+        .data(GENE_MAP)
+        .enter()
+        .append('rect')
+        .attr('class', 'gene-border')
+        .attr('x', d => xScale(d.start))
+        .attr('y', d => getRowY(d.row))
+        .attr('width', d => xScale(d.end) - xScale(d.start))
+        .attr('height', RENDER_CONFIG.geneRowHeight)
+        .attr('fill', 'none')
+        .attr('stroke', d => (d.name === 'nef' || d.name === "3' LTR") ? '#000000' : 'none')
+        .attr('stroke-width', d => (d.name === 'nef' || d.name === "3' LTR") ? 0.2 : 0);
+      
+      // 渲染基因名称（在长方形内部垂直居中，只渲染有名称的基因）
+      geneGroup.selectAll('text.gene-label')
+        .data(GENE_MAP.filter(d => d.name !== ''))
+        .enter()
+        .append('text')
+        .attr('class', 'gene-label')
+        .attr('x', d => xScale(d.start) + (xScale(d.end) - xScale(d.start)) / 2)
+        .attr('y', d => getRowY(d.row) + RENDER_CONFIG.geneRowHeight / 2 + 4)  // 垂直居中
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr('font-family', 'Arial, sans-serif')
+        .attr('fill', '#333333')
+        .text(d => d.name);
+    }
+
+    /**
+     * 渲染连接线（用于tat和rev的外显子连接）
+     * tat: 从第二行vpu左侧块顶部 垂直向上 -> 水平向右 -> 连接到第一行nef左侧块的垂直中间
+     * rev: 从第三行vpr右侧块顶部 垂直向上 -> 在env上方斜线 -> 连接到第二行3'LTR左侧块的垂直中间
+     * @param {Object} svg - D3 SVG selection
+     */
+    function renderConnectorLines(svg) {
+      const connectorGroup = svg.append('g').attr('class', 'connector-lines');
+      
+      // 计算每行的Y坐标（顶部）
+      const getRowY = (row) => {
+        const baseY = RENDER_CONFIG.margin.top + 20;
+        return baseY + (row - 1) * (RENDER_CONFIG.geneRowHeight + RENDER_CONFIG.geneRowGap);
+      };
+      
+      // tat连接线：从第二行vpu左侧块 -> 第一行nef左侧块
+      const tatFromX = 6045;  // 第二行vpu左侧块右边缘
+      const tatToX = 8379;    // 第一行nef左侧块左边缘
+      const tatFromY = getRowY(2) - 5;  // 第二行顶部再向上一点
+      const tatToY = getRowY(1) + RENDER_CONFIG.geneRowHeight / 2;  // 第一行块的垂直中间
+      const tatMidY = tatToY;  // 水平线高度与目标块中间对齐
+      
+      const tatPath = `M ${xScale(tatFromX)} ${tatFromY} 
+                       L ${xScale(tatFromX)} ${tatMidY} 
+                       L ${xScale(tatToX)} ${tatMidY}`;
+      
+      connectorGroup.append('path')
+        .attr('d', tatPath)
+        .attr('fill', 'none')
+        .attr('stroke', '#666666')
+        .attr('stroke-width', 1);
+      
+      // tat标签
+      const tatLabelX = (xScale(tatFromX) + xScale(tatToX)) / 2;
+      connectorGroup.append('text')
+        .attr('x', tatLabelX)
+        .attr('y', tatMidY - 3)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr('font-family', 'Arial, sans-serif')
+        .attr('fill', '#333333')
+        .text('tat');
+      
+      // rev连接线：从第三行vpr右侧块 -> 第二行3'LTR左侧块
+      const revFromX = 6045;  // 第三行vpr右侧块右边缘
+      const revToX = 8379;    // 第二行3'LTR左侧块左边缘
+      const revFromY = getRowY(3);  // 第三行顶部
+      const revToY = getRowY(2) + RENDER_CONFIG.geneRowHeight / 2;  // 第二行块的垂直中间
+      const revMidY = revFromY - 5;  // 水平线高度（在第三行上方一点）
+      const revTurnX = 7200;  // 斜线转弯点X坐标（env文字上方大概位置）
+      
+      const revPath = `M ${xScale(revFromX)} ${revFromY} 
+                       L ${xScale(revFromX)} ${revMidY} 
+                       L ${xScale(revTurnX)} ${revMidY} 
+                       L ${xScale(revToX)} ${revToY}`;
+      
+      connectorGroup.append('path')
+        .attr('d', revPath)
+        .attr('fill', 'none')
+        .attr('stroke', '#666666')
+        .attr('stroke-width', 1);
+      
+      // rev标签（放在水平段上方，向右偏移一些）
+      const revLabelX = (xScale(revFromX) + xScale(revTurnX)) / 2 + 30;
+      connectorGroup.append('text')
+        .attr('x', revLabelX)
+        .attr('y', revMidY - 3)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr('font-family', 'Arial, sans-serif')
+        .attr('fill', '#333333')
+        .text('rev');
+    }
+
+    /**
+     * 渲染亚型区域着色
+     * 只在基因长方形区域内着色，而不是整个坐标范围
+     * Requirements: 3.1, 3.4
+     * @param {Object} svg - D3 SVG selection
+     * @param {Array} regions - 亚型区域数组
+     */
+    function renderSubtypeRegions(svg, regions) {
+      if (!regions || regions.length === 0) return;
+      
+      const regionGroup = svg.append('g').attr('class', 'subtype-regions');
+      
+      // 计算每行的Y坐标
+      const getRowY = (row) => {
+        const baseY = RENDER_CONFIG.margin.top + 20;
+        return baseY + (row - 1) * (RENDER_CONFIG.geneRowHeight + RENDER_CONFIG.geneRowGap);
+      };
+      
+      // 对于每个亚型区域，只在与基因长方形重叠的部分着色
+      regions.forEach(region => {
+        GENE_MAP.forEach(gene => {
+          // 计算亚型区域与基因区域的重叠部分
+          const overlapStart = Math.max(region.start, gene.start);
+          const overlapEnd = Math.min(region.end, gene.end);
+          
+          // 如果有重叠，则渲染该重叠区域
+          if (overlapStart < overlapEnd) {
+            regionGroup.append('rect')
+              .attr('class', 'subtype-region')
+              .attr('x', xScale(overlapStart))
+              .attr('y', getRowY(gene.row))
+              .attr('width', xScale(overlapEnd) - xScale(overlapStart))
+              .attr('height', RENDER_CONFIG.geneRowHeight)
+              .attr('fill', region.color)
+              .attr('opacity', 0.8);
+          }
+        });
+      });
+    }
+
+    /**
+     * 渲染断点数字
+     * Requirements: 4.1, 4.4
+     * @param {Object} svg - D3 SVG selection
+     * @param {Array} breakpoints - 断点数组
+     */
+    function renderBreakpoints(svg, breakpoints) {
+      if (!breakpoints || breakpoints.length === 0) return;
+      
+      const breakpointGroup = svg.append('g').attr('class', 'breakpoints');
+      
+      // 基因图谱第一行的Y坐标
+      const geneRowY = RENDER_CONFIG.margin.top + 20;
+      
+      // 短线位置：在基因图谱上方
+      const tickEndY = geneRowY - 3;        // 短线底部（靠近基因图谱）
+      const tickStartY = tickEndY - 8;      // 短线顶部
+      const numberY = tickStartY - 3;       // 数字位置（短线上方）
+      
+      // 渲染断点数字（垂直90度显示）
+      breakpointGroup.selectAll('text.breakpoint')
+        .data(breakpoints)
+        .enter()
+        .append('text')
+        .attr('class', 'breakpoint')
+        .attr('x', d => xScale(d.position) + 4)  // 向右偏移4px，对齐短线
+        .attr('y', numberY)
+        .attr('text-anchor', 'start')
+        .attr('font-size', '11px')
+        .attr('font-family', 'Arial, sans-serif')
+        .attr('fill', '#333333')
+        .attr('transform', d => `rotate(-90, ${xScale(d.position) + 4}, ${numberY})`)
+        .text(d => d.displayValue);
+      
+      // 渲染短垂直刻度线（在数字下方，基因图谱上方）
+      breakpointGroup.selectAll('line.tick')
+        .data(breakpoints)
+        .enter()
+        .append('line')
+        .attr('class', 'tick')
+        .attr('x1', d => xScale(d.position))
+        .attr('y1', tickStartY)
+        .attr('x2', d => xScale(d.position))
+        .attr('y2', tickEndY)
+        .attr('stroke', '#333333')
+        .attr('stroke-width', 1);
+    }
+
+    /**
+     * 渲染坐标轴
+     * Requirements: 2.5
+     * @param {Object} svg - D3 SVG selection
+     */
+    function renderAxis(svg) {
+      const axisY = RENDER_CONFIG.margin.top + 20 + 3 * (RENDER_CONFIG.geneRowHeight + RENDER_CONFIG.geneRowGap) + 10;
+      
+      // 创建X轴
+      const xAxis = d3.axisBottom(xScale)
+        .tickValues([0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 9719])
+        .tickFormat(d => d);
+      
+      svg.append('g')
+        .attr('class', 'x-axis')
+        .attr('transform', `translate(0, ${axisY})`)
+        .call(xAxis)
+        .selectAll('text')
+        .attr('font-size', '10px');
+    }
+
+    /**
+     * 渲染图例
+     * Requirements: 5.1, 5.2, 5.3
+     * @param {Object} svg - D3 SVG selection
+     * @param {Array} regions - 亚型区域数组
+     */
+    function renderLegend(svg, regions) {
+      if (!regions || regions.length === 0) return;
+      
+      // 提取唯一的亚型和颜色
+      const subtypeMap = new Map();
+      regions.forEach(region => {
+        if (!subtypeMap.has(region.subtype)) {
+          subtypeMap.set(region.subtype, region.color);
+        }
+      });
+      
+      const legendData = Array.from(subtypeMap, ([subtype, color]) => ({ subtype, color }));
+      
+      const legendGroup = svg.append('g')
+        .attr('class', 'legend')
+        .attr('transform', `translate(${RENDER_CONFIG.margin.left}, ${RENDER_CONFIG.height - 30})`);
+      
+      const legendItemWidth = 80;
+      
+      // 渲染图例项
+      const legendItems = legendGroup.selectAll('g.legend-item')
+        .data(legendData)
+        .enter()
+        .append('g')
+        .attr('class', 'legend-item')
+        .attr('transform', (d, i) => `translate(${i * legendItemWidth}, 0)`);
+      
+      // 颜色块
+      legendItems.append('rect')
+        .attr('width', 15)
+        .attr('height', 15)
+        .attr('fill', d => d.color)
+        .attr('stroke', '#999999')
+        .attr('stroke-width', 0.5);
+      
+      // 文字标签
+      legendItems.append('text')
+        .attr('x', 20)
+        .attr('y', 12)
+        .attr('font-size', '11px')
+        .attr('font-family', 'Arial, sans-serif')
+        .attr('fill', '#333333')
+        .text(d => d.subtype);
+    }
+
+    /**
+     * 主渲染函数
+     * @param {Array} regions - 亚型区域数组
+     */
+    function render(regions) {
+      // 1. 初始化SVG
+      const svg = initSVG();
+      
+      // 2. 渲染基因图谱背景（灰色长方形，作为底层）
+      renderGeneMapBackground(svg);
+      
+      // 3. 渲染亚型着色区域（覆盖在灰色背景上）
+      renderSubtypeRegions(svg, regions);
+      
+      // 4. 渲染基因图谱边框和名称（在着色区域之上）
+      renderGeneMapLabels(svg);
+      
+      // 5. 渲染连接线（tat和rev的外显子连接）
+      renderConnectorLines(svg);
+      
+      // 6. 计算并渲染断点
+      const breakpoints = calculateBreakpoints(regions);
+      renderBreakpoints(svg, breakpoints);
+      
+      // 7. 渲染坐标轴
+      renderAxis(svg);
+      
+      // 8. 渲染图例
+      renderLegend(svg, regions);
+    }
+
+    // ============================================
+    // 事件绑定
+    // Requirements: 1.2
+    // ============================================
+    
+    /**
+     * 初始化应用程序
+     * 绑定提交按钮点击事件
+     */
+    function initApp() {
+      const submitBtn = document.getElementById('submitBtn');
+      const clearInputBtn = document.getElementById('clearInputBtn');
+      const clearResultBtn = document.getElementById('clearResultBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const downloadPngBtn = document.getElementById('downloadPngBtn');
+      const downloadJpgBtn = document.getElementById('downloadJpgBtn');
+      const downloadSvgBtn = document.getElementById('downloadSvgBtn');
+      const dataInput = document.getElementById('dataInput');
+      
+      if (!submitBtn || !dataInput) {
+        console.error('无法找到必要的DOM元素');
+        return;
+      }
+      
+      // 绑定提交按钮点击事件
+      submitBtn.addEventListener('click', handleSubmit);
+      
+      // 清空输入框
+      clearInputBtn.addEventListener('click', function() {
+        dataInput.value = '';
+        dataInput.focus();
+      });
+      
+      // 清空结果图
+      clearResultBtn.addEventListener('click', function() {
+        const svg = d3.select('#chart');
+        svg.selectAll('*').remove();
+      });
+      
+      // 重置（同时清空输入和结果）
+      resetBtn.addEventListener('click', function() {
+        dataInput.value = '';
+        const svg = d3.select('#chart');
+        svg.selectAll('*').remove();
+        resetAssignedColors();
+        dataInput.focus();
+      });
+      
+      // 下载PNG
+      downloadPngBtn.addEventListener('click', function() {
+        downloadImage('png');
+      });
+      
+      // 下载JPG
+      downloadJpgBtn.addEventListener('click', function() {
+        downloadImage('jpg');
+      });
+      
+      // 下载SVG
+      downloadSvgBtn.addEventListener('click', function() {
+        downloadSvg();
+      });
+      
+      // 支持Ctrl+Enter快捷键提交
+      dataInput.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+          handleSubmit();
+        }
+      });
+    }
+    
+    /**
+     * 检查是否有渲染结果
+     */
+    function hasRenderedChart() {
+      const svg = document.getElementById('chart');
+      return svg && svg.childNodes.length > 0;
+    }
+    
+    /**
+     * 下载图片（PNG或JPG）
+     */
+    function downloadImage(format) {
+      if (!hasRenderedChart()) {
+        alert('请先生成图表后再下载');
+        return;
+      }
+      
+      const svg = document.getElementById('chart');
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      canvas.width = RENDER_CONFIG.width;
+      canvas.height = RENDER_CONFIG.height;
+      
+      img.onload = function() {
+        // 白色背景
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        
+        const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+        const dataUrl = canvas.toDataURL(mimeType, 1.0);
+        
+        const link = document.createElement('a');
+        link.download = `hiv-recombinant-chart.${format}`;
+        link.href = dataUrl;
+        link.click();
+      };
+      
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    }
+    
+    /**
+     * 下载SVG
+     */
+    function downloadSvg() {
+      if (!hasRenderedChart()) {
+        alert('请先生成图表后再下载');
+        return;
+      }
+      
+      const svg = document.getElementById('chart');
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.download = 'hiv-recombinant-chart.svg';
+      link.href = url;
+      link.click();
+      
+      URL.revokeObjectURL(url);
+    }
+    
+    /**
+     * 处理提交事件
+     * 获取输入内容，调用解析器，调用渲染器
+     */
+    function handleSubmit() {
+      const dataInput = document.getElementById('dataInput');
+      const inputText = dataInput.value;
+      
+      // 验证并解析输入
+      const result = validateInput(inputText);
+      
+      if (!result.valid) {
+        alert(result.message);
+        return;
+      }
+      
+      console.log(result.message);
+      console.log('解析结果:', result.regions);
+      
+      // 渲染图表
+      render(result.regions);
+    }
+    
+    // 页面加载完成后初始化应用
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
