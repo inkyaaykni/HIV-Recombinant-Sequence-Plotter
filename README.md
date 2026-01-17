@@ -7,7 +7,7 @@
 | 文件名                | 类型     | 说明                                                         |
 | :-------------------- | :------- | :----------------------------------------------------------- |
 | **`HIV_v1.0.3.html`** | 网页工具 | **纯前端版本**。无需安装任何环境，双击直接在浏览器中运行，适合快速交互式绘图。 |
-| **`HIV_v2.js`**       | 核心脚本 | **Node.js 源码**。绘图逻辑的核心文件，支持命令行参数 (`-i`, `-pdf`, `-png`)，基于 `canvas` 库开发。 |
+| **`HIV_v3.js`**       | 核心脚本 | **Node.js 源码**。绘图逻辑的核心文件，支持命令行参数 (`-i`, `-pdf`, `-png`)，基于 `canvas` 库开发。 |
 | **`Dockerfile`**      | 构建文件 | **镜像配方**。用于根据源码构建包含完整环境（Node.js, Canvas, 字体库）的 Docker 镜像。 |
 | **`package.json`**    | 依赖配置 | Node.js 项目的依赖描述文件。                                 |
 
@@ -62,8 +62,8 @@ docker run --rm -v "D:\work\data:/data" hiv-plotter -i /data/input.txt -pdf /dat
 docker run -it --rm -v "D:\work\data:/data" --entrypoint sh hiv-plotter
 
 # 2. 在容器内执行多次命令
-node HIV_v2.js -i /data/sample1.txt -pdf /data/out1.pdf -png /data/out1.png
-node HIV_v2.js -i /data/sample2.txt -pdf /data/out2.pdf -png /data/out2.png
+node HIV_v3.js -i /data/sample1.txt -pdf /data/out1.pdf -png /data/out1.png
+node HIV_v3.js -i /data/sample2.txt -pdf /data/out2.pdf -png /data/out2.png
 
 # 3. 退出
 exit
@@ -85,7 +85,7 @@ exit
 npm install
 
 # 2. 运行脚本
-node HIV_v2.js -i ./input.txt -pdf ./output.pdf -png ./output.png
+node HIV_v3.js -i ./input.txt -pdf ./output.pdf -png ./output.png
 ```
 
 ---
