@@ -116,7 +116,10 @@ const RENDER_CONFIG = {
   margin: { top: 60, right: 50, bottom: 80, left: 50 },
   geneRowHeight: 25,
   geneRowGap: 10,
-  axisRange: [0, 9719]
+  axisRange: [0, 9719],
+  // PNG 输出配置 (自定义高分辨率)
+  pngWidth: 6000,
+  pngHeight: 2000
 };
 
 // ============================================
@@ -272,16 +275,25 @@ function drawToContext(ctx, width, height, regions) {
 
   // 5. 绘制断点
   const breakpoints = calculateBreakpoints(regions);
-  const tickStartY = RENDER_CONFIG.margin.top + 20 - 11;
-  const tickEndY = tickStartY + 8;
-  const numberY = tickStartY - 3;
+  const geneRowY = RENDER_CONFIG.margin.top + 20;
+  const tickEndY = geneRowY - 3;        // 短线底部（靠近基因图谱）
+  const tickStartY = tickEndY - 8;      // 短线顶部
+  const numberY = tickStartY - 3;       // 数字位置（短线上方）
   
-  ctx.strokeStyle = '#333333'; ctx.font = '11px "Liberation Sans", Arial, sans-serif';
+  ctx.strokeStyle = '#333333'; ctx.font = '9px "Liberation Sans", Arial, sans-serif';
   breakpoints.forEach(bp => {
     const x = xScale(bp.position);
+    // 绘制短线
     ctx.beginPath(); ctx.moveTo(x, tickStartY); ctx.lineTo(x, tickEndY); ctx.stroke();
-    ctx.save(); ctx.translate(x + 4, numberY); ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'left'; ctx.fillText(bp.displayValue.toString(), 0, 0); ctx.restore();
+    // 绘制旋转的数字（垂直显示，数字底部靠近短线）
+    ctx.save();
+    ctx.translate(x, numberY);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'left';  // 旋转后，left 使数字底部靠近短线
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#333333';
+    ctx.fillText(bp.displayValue.toString(), 0, 0);
+    ctx.restore();
   });
 
   // 6. 绘制坐标轴
@@ -306,7 +318,9 @@ function drawToContext(ctx, width, height, regions) {
     ctx.fillStyle = item.color; ctx.fillRect(x, legendY, 15, 15);
     ctx.strokeStyle = '#999999'; ctx.lineWidth = 0.5; ctx.strokeRect(x, legendY, 15, 15);
     ctx.fillStyle = '#333333'; ctx.font = '11px "Liberation Sans", Arial, sans-serif';
-    ctx.textAlign = 'left'; ctx.fillText(item.subtype, x + 20, legendY + 12);
+    ctx.textAlign = 'left'; 
+    ctx.textBaseline = 'middle';  // 垂直居中对齐
+    ctx.fillText(item.subtype, x + 20, legendY + 7.5);  // 7.5 = 15/2，方块高度的一半
   });
 }
 
@@ -324,19 +338,26 @@ try {
   }
   console.log(`解析成功: 包含 ${regions.length} 个区域`);
 
-  // --- 生成 PNG ---
+  // --- 生成 PNG (4K 分辨率) ---
   if (params.png) {
-    const canvasPng = createCanvas(RENDER_CONFIG.width, RENDER_CONFIG.height);
+    const canvasPng = createCanvas(RENDER_CONFIG.pngWidth, RENDER_CONFIG.pngHeight);
     const ctxPng = canvasPng.getContext('2d');
+    
+    // 计算缩放比例并应用
+    const scaleX = RENDER_CONFIG.pngWidth / RENDER_CONFIG.width;
+    const scaleY = RENDER_CONFIG.pngHeight / RENDER_CONFIG.height;
+    ctxPng.scale(scaleX, scaleY);
+    
+    // 使用原始尺寸绘制（会被自动缩放到 4K）
     drawToContext(ctxPng, RENDER_CONFIG.width, RENDER_CONFIG.height, regions);
     
     // 确保目录存在
     fs.mkdirSync(path.dirname(params.png), { recursive: true });
     
-    // 设置 DPI 为 300 (metadata)
+    // 设置分辨率为 300 DPI/PPI (在 PNG 元数据中，DPI 和 PPI 是同一个值)
     const buffer = canvasPng.toBuffer('image/png', { resolution: 300 });
     fs.writeFileSync(params.png, buffer);
-    console.log(`[PNG] 已保存 (300 DPI): ${params.png}`);
+    console.log(`[PNG] 已保存 (${RENDER_CONFIG.pngWidth}x${RENDER_CONFIG.pngHeight}, 300 DPI/PPI): ${params.png}`);
   }
 
   // --- 生成 PDF ---

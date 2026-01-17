@@ -27,7 +27,7 @@ COPY package.json ./
 RUN npm install --registry=https://registry.npmmirror.com
 
 # 6. 复制脚本
-COPY HIV_v2.js ./
+COPY HIV_v3.js ./
 
 # 7. 设置入口
-ENTRYPOINT ["node", "HIV_v2.js"]
+ENTRYPOINT ["node", "HIV_v3.js"]
